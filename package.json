@@ -1,13 +1,19 @@
 {
 	"name": "@nectopro/n8n-nodes-nano-banana",
-	"version": "0.1.2",
+	"version": "0.1.8",
 	"description": "Nano Banana Node for n8n",
 	"keywords": [
-		"n8n-community-node-package"
+		"n8n-community-node-package",
+		"ai",
+		"image generation",
+		"nano banana"
 	],
 	"license": "MIT",
 	"homepage": "https://github.com/necto-pro/n8n-nodes-nano-banana#readme",
-	"author": "Necto Pro <admin@necto.pro>",
+	"author": {
+		"name": "Necto Pro",
+		"email": "admin@necto.pro"
+	},
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/necto-pro/n8n-nodes-nano-banana.git"

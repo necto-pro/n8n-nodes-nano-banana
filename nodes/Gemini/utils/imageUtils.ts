@@ -16,9 +16,9 @@ export interface GeminiPart {
 
 export class ImageUtils {
 	/**
-	 * Convert image URL to base64 data
+	 * Convert image URL to base64 data and detect MIME type
 	 */
-	static async urlToBase64(executeFunctions: IExecuteFunctions, imageUrl: string): Promise<string> {
+	static async urlToBase64WithMimeType(executeFunctions: IExecuteFunctions, imageUrl: string): Promise<{ data: string; mimeType: string }> {
 		try {
 			const response = await executeFunctions.helpers.httpRequest({
 				method: 'GET',
@@ -40,10 +40,44 @@ export class ImageUtils {
 				buffer = Buffer.from(response.body);
 			}
 
-			return buffer.toString('base64');
+			const base64Data = buffer.toString('base64');
+			
+			// Auto-detect MIME type from multiple sources
+			let detectedMimeType = 'image/png'; // Default fallback
+			
+			// 1. Try to get from Content-Type header
+			if (response.headers && response.headers['content-type']) {
+				const contentType = response.headers['content-type'];
+				if (typeof contentType === 'string' && contentType.startsWith('image/')) {
+					detectedMimeType = contentType.split(';')[0]; // Remove charset if present
+				}
+			}
+			
+			// 2. If no valid content-type, detect from binary data
+			if (detectedMimeType === 'image/png') {
+				detectedMimeType = this.detectMimeType(base64Data);
+			}
+			
+			// 3. If still no detection, try URL extension as last resort
+			if (detectedMimeType === 'image/png') {
+				detectedMimeType = this.getMimeTypeFromUrl(imageUrl);
+			}
+
+			return {
+				data: base64Data,
+				mimeType: detectedMimeType
+			};
 		} catch (error) {
 			throw new Error(`Failed to fetch image from URL: ${imageUrl}. Error: ${error.message}`);
 		}
+	}
+
+	/**
+	 * Convert image URL to base64 data (legacy method for backward compatibility)
+	 */
+	static async urlToBase64(executeFunctions: IExecuteFunctions, imageUrl: string): Promise<string> {
+		const result = await this.urlToBase64WithMimeType(executeFunctions, imageUrl);
+		return result.data;
 	}
 
 	/**
@@ -125,8 +159,9 @@ export class ImageUtils {
 				if (!imageUrl.trim()) {
 					throw new Error('Image URL cannot be empty');
 				}
-				processedData = await this.urlToBase64(executeFunctions, imageUrl);
-				detectedMimeType = mimeType || this.getMimeTypeFromUrl(imageUrl);
+				const urlResult = await this.urlToBase64WithMimeType(executeFunctions, imageUrl);
+				processedData = urlResult.data;
+				detectedMimeType = mimeType || urlResult.mimeType; // Use auto-detected MIME type if not manually specified
 			} else if (contentType === 'imageBase64' && imageBase64) {
 				if (!imageBase64.trim()) {
 					throw new Error('Image Base64 data cannot be empty');

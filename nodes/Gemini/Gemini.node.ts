@@ -58,20 +58,10 @@ export class Gemini implements INodeType {
 				},
 				options: [
 					{
-						name: 'Gemini 2.5 Flash Image Preview',
+						name: 'Nano Banana Image',
 						value: 'gemini-2.5-flash-image-preview',
 						description: 'Latest model with image generation capabilities',
-					},
-					{
-						name: 'Gemini 1.5 Flash',
-						value: 'gemini-1.5-flash',
-						description: 'Fast and efficient model for text generation',
-					},
-					{
-						name: 'Gemini 1.5 Pro',
-						value: 'gemini-1.5-pro',
-						description: 'Most capable model for complex tasks',
-					},
+					}
 				],
 				default: 'gemini-2.5-flash-image-preview',
 			},
@@ -148,24 +138,29 @@ export class Gemini implements INodeType {
 								},
 								options: [
 									{
-										name: 'PNG',
-										value: 'image/png',
+										name: 'Auto-Detect (Recommended)',
+										value: '',
+									},
+									{
+										name: 'GIF',
+										value: 'image/gif',
 									},
 									{
 										name: 'JPEG',
 										value: 'image/jpeg',
 									},
 									{
+										name: 'PNG',
+										value: 'image/png',
+									},
+									{
 										name: 'WebP',
 										value: 'image/webp',
 									},
-									{
-										name: 'GIF',
-										value: 'image/gif',
-									},
 								],
-								default: 'image/png',
-								description: 'MIME type of the image (auto-detected if not specified)',
+								default: '',
+								description:
+									'MIME type of the image. Leave empty for auto-detection (recommended for URLs).',
 							},
 							{
 								displayName: 'Role',
@@ -235,18 +230,7 @@ export class Gemini implements INodeType {
 				default: ['TEXT', 'IMAGE'],
 				description: 'Types of content the model should generate',
 			},
-			{
-				displayName: 'Stream Response',
-				name: 'streamResponse',
-				type: 'boolean',
-				displayOptions: {
-					show: {
-						operation: ['generateContent'],
-					},
-				},
-				default: true,
-				description: 'Whether to use streaming response (recommended for better performance)',
-			},
+
 			{
 				displayName: 'Additional Options',
 				name: 'additionalOptions',
@@ -317,7 +301,6 @@ export class Gemini implements INodeType {
 					const messageHistory = this.getNodeParameter('messageHistory.messages', i, []) as any[];
 					const currentMessage = this.getNodeParameter('currentMessage', i) as string;
 					const responseModalities = this.getNodeParameter('responseModalities', i) as string[];
-					const streamResponse = this.getNodeParameter('streamResponse', i) as boolean;
 					const additionalOptions = this.getNodeParameter('additionalOptions', i, {}) as any;
 
 					// Initialize Google GenAI
@@ -386,29 +369,21 @@ export class Gemini implements INodeType {
 					}
 
 					// Generate content
-					let result: any = {};
 					let textResponse = '';
 					const generatedImages: any[] = [];
 
-					if (streamResponse) {
-						// Use streaming response
-						const response = await ai.models.generateContentStream({
-							model,
-							config,
-							contents,
-						});
+					// Use non-streaming response
+					const response = await ai.models.generateContent({
+						model,
+						config,
+						contents,
+					});
 
+					if (response.candidates && response.candidates[0].content) {
+						const parts = response.candidates[0].content.parts ?? [];
 						let fileIndex = 0;
-						for await (const chunk of response) {
-							if (
-								!chunk.candidates ||
-								!chunk.candidates[0].content ||
-								!chunk.candidates[0].content.parts
-							) {
-								continue;
-							}
 
-							const parts = chunk.candidates[0].content.parts;
+						if (parts && Array.isArray(parts)) {
 							for (const part of parts) {
 								if (part.inlineData) {
 									// Handle generated image
@@ -425,69 +400,48 @@ export class Gemini implements INodeType {
 								}
 							}
 						}
-					} else {
-						// Use non-streaming response
-						const response = await ai.models.generateContent({
-							model,
-							config,
-							contents,
-						});
-
-						if (response.candidates && response.candidates[0].content) {
-							const parts = response.candidates[0].content.parts ?? [];
-							let fileIndex = 0;
-
-							if (parts && Array.isArray(parts)) {
-								for (const part of parts) {
-									if (part.inlineData) {
-										// Handle generated image
-										const fileName = `generated_image_${fileIndex++}`;
-										const imageData = ImageUtils.saveBinaryToNodeData(
-											part.inlineData.data || '',
-											part.inlineData.mimeType || 'image/png',
-											fileName,
-										);
-										generatedImages.push(imageData);
-									} else if (part.text) {
-										// Handle text response
-										textResponse += part.text;
-									}
-								}
-							}
-						}
-
-						// Prepare result
-						result = {
-							text: textResponse,
-							images: generatedImages,
-							model,
-							responseModalities,
-							usage: {
-								totalTokens: textResponse.length, // Approximate
-							},
-						};
-
-						returnData.push({
-							json: result,
-							binary:
-								generatedImages.length > 0
-									? generatedImages.reduce((acc, img, idx) => {
-											acc[`image_${idx}`] = {
-												data: img.data.toString('base64'),
-												mimeType: img.mimeType,
-												fileName: img.fileName,
-											};
-											return acc;
-										}, {} as any)
-									: undefined,
-							pairedItem: { item: i },
-						});
 					}
+
+					// Prepare result
+					const result = {
+						text: textResponse,
+						// images: generatedImages,
+						data: generatedImages.length > 0 ? generatedImages[0].data : null,
+						metadata:
+							generatedImages.length > 0
+								? {
+										mimeType: generatedImages[0].mimeType,
+										fileName: generatedImages[0].fileName,
+									}
+								: null,
+						model,
+						responseModalities,
+						usage: {
+							totalTokens: textResponse.length, // Approximate
+						},
+					};
+
+					returnData.push({
+						json: result,
+						binary:
+							generatedImages.length > 0
+								? {
+										data: {
+											data: generatedImages[0].data.toString('base64'),
+											mimeType: generatedImages[0].mimeType,
+											fileName: generatedImages[0].fileName,
+										},
+									}
+								: undefined,
+						pairedItem: { item: i },
+					});
 				}
 			} catch (error) {
 				// Sanitize error message to prevent binary data leakage
-				const sanitizedMessage = error.message ? error.message.replace(/[\x00-\x1F\x7F-\x9F]/g, '') : 'Unknown error occurred';
-				
+				const sanitizedMessage = error.message
+					? error.message.replace(/[\x00-\x1F\x7F-\x9F]/g, '')
+					: 'Unknown error occurred';
+
 				if (this.continueOnFail()) {
 					returnData.push({
 						json: { error: sanitizedMessage },
@@ -495,7 +449,7 @@ export class Gemini implements INodeType {
 					});
 					continue;
 				}
-				
+
 				const sanitizedError = new Error(sanitizedMessage);
 				sanitizedError.stack = error.stack;
 				throw new NodeOperationError(this.getNode(), sanitizedError, { itemIndex: i });
