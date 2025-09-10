@@ -403,23 +403,22 @@ export class Gemini implements INodeType {
 					}
 
 					// Prepare result
-					const result = {
+					const result: any = {
 						text: textResponse,
-						// images: generatedImages,
-						data: generatedImages.length > 0 ? generatedImages[0].data : null,
-						metadata:
-							generatedImages.length > 0
-								? {
-										mimeType: generatedImages[0].mimeType,
-										fileName: generatedImages[0].fileName,
-									}
-								: null,
 						model,
 						responseModalities,
 						usage: {
 							totalTokens: textResponse.length, // Approximate
 						},
 					};
+
+					// Add image metadata to JSON result if images were generated
+					if (generatedImages.length > 0) {
+						result.metadata = {
+							mimeType: generatedImages[0].mimeType,
+							fileName: generatedImages[0].fileName,
+						};
+					}
 
 					returnData.push({
 						json: result,
