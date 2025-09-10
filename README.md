@@ -48,6 +48,7 @@ The Nano Banana node supports the following operations:
 - **Image Analysis**: Analyze and describe uploaded images
 - **Multimodal Conversations**: Combine text and images in interactive dialogues
 - **Creative Tasks**: Logo design, artwork, technical diagrams, and illustrations
+- **JSON Input Format**: Provide message history and current message as JSON for programmatic workflows
 
 ### Key Features
 - Support for multiple content types (text, images via URL or base64)
@@ -56,6 +57,7 @@ The Nano Banana node supports the following operations:
 - Multiple response modalities (text, images, or both)
 - Advanced configuration options (temperature, tokens, etc.)
 - Comprehensive error handling
+- Flexible input formats (Manual UI mapping or JSON)
 
 ## Credentials
 
@@ -88,19 +90,55 @@ To use this node, you need a Google AI Studio API key.
 
 ## Getting Started
 
+### Input Format Options
+
+The node supports two input formats that can be selected in the node settings:
+
+1. **Manual Mapping**: Use the UI fields to define message history and current message
+2. **JSON Format**: Provide all input data as a JSON object in the "JSON Input" field
+
+### JSON Input Format
+
+When using JSON format, provide a JSON object with the following structure:
+
+```json
+{
+  "messageHistory": [
+    {
+      "contentType": "text",
+      "text": "What's in this image?",
+      "role": "user"
+    },
+    {
+      "contentType": "imageUrl",
+      "imageUrl": "https://example.com/image.jpg",
+      "mimeType": "image/jpeg",
+      "role": "user"
+    },
+    {
+      "contentType": "text",
+      "text": "This is a beautiful landscape with mountains and a lake.",
+      "role": "model"
+    }
+  ],
+  "currentMessage": "Can you describe the colors in more detail?"
+}
+```
+
 ### Basic Text Generation
 
 1. Add a **Nano Banana** node to your workflow
 2. Set up your **AI Studio Credentials**
 3. Select **Generate Image** operation
 4. Choose **Nano Banana Image** model
-5. Enter your prompt in **Current Message**
-6. Set **Response Modalities** to **TEXT**
-7. Execute the node
+5. Select **JSON Format** if you want to use JSON input, or keep **Manual Mapping**
+6. Enter your prompt in **Current Message** (Manual) or **JSON Input** (JSON)
+7. Set **Response Modalities** to **TEXT**
+8. Execute the node
 
 ### Basic Image Generation
 
-1. Follow steps 1-4 from above
+1. Follow steps 1-5 from above
 2. Enter an image description prompt
 3. Set **Response Modalities** to **IMAGE**
 4. Execute to generate an image
@@ -108,13 +146,15 @@ To use this node, you need a Google AI Studio API key.
 ### Image Analysis
 
 1. Add the node and configure credentials
-2. In **Message History**, add a message with:
+2. Select input format (Manual or JSON)
+3. For Manual: In **Message History**, add a message with:
    - **Content Type**: Image (URL) or Image (Base64)
    - **Image URL** or **Image Base64** data
    - **Role**: User
-3. Set **Current Message** to your question about the image
-4. Set **Response Modalities** to **TEXT**
-5. Execute to get image analysis
+4. For JSON: Include image data in the JSON input
+5. Set **Current Message** to your question about the image
+6. Set **Response Modalities** to **TEXT**
+7. Execute to get image analysis
 
 ## Usage Examples
 
@@ -176,6 +216,17 @@ To use this node, you need a Google AI Studio API key.
     ]
   },
   "currentMessage": "It's for a photography portfolio",
+  "responseModalities": ["TEXT"]
+}
+```
+
+### Example 5: JSON Input Format
+```json
+{
+  "operation": "generateContent",
+  "model": "gemini-2.5-flash-image-preview",
+  "inputFormat": "json",
+  "jsonInput": "{\n  \"messageHistory\": [\n    {\n      \"contentType\": \"text\",\n      \"text\": \"What's in this image?\",\n      \"role\": \"user\"\n    },\n    {\n      \"contentType\": \"imageUrl\",\n      \"imageUrl\": \"https://example.com/image.jpg\",\n      \"mimeType\": \"image/jpeg\",\n      \"role\": \"user\"\n    }\n  ],\n  \"currentMessage\": \"Can you describe the colors in more detail?\"\n}",
   "responseModalities": ["TEXT"]
 }
 ```

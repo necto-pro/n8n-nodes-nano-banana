@@ -1,0 +1,21 @@
+{
+  "messageHistory": [
+    {
+      "contentType": "text",
+      "text": "What's in this image?",
+      "role": "user"
+    },
+    {
+      "contentType": "imageUrl",
+      "imageUrl": "https://images.unsplash.com/photo-1757252872535-01668694fb44?q=80&w=2070",
+      "mimeType": "image/jpeg",
+      "role": "user"
+    },
+    {
+      "contentType": "text",
+      "text": "This is a beautiful landscape with mountains and a lake.",
+      "role": "model"
+    }
+  ],
+  "currentMessage": "Can you describe the colors in more detail?"
+}

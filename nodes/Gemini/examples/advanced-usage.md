@@ -4,7 +4,7 @@
 
 This example recreates the functionality from your original script:
 
-### Node Configuration:
+### Node Configuration (Manual Mapping):
 ```json
 {
   "operation": "generateImage",
@@ -36,25 +36,31 @@ This example recreates the functionality from your original script:
 }
 ```
 
+### Node Configuration (JSON Input):
+```json
+{
+  "operation": "generateImage",
+  "model": "gemini-2.5-flash-image-preview",
+  "inputFormat": "json",
+  "jsonInput": "{\n  \"messageHistory\": [\n    {\n      \"role\": \"user\",\n      \"contentType\": \"imageBase64\",\n      \"imageBase64\": \"iVBORw0KGgoAAAANSUhE...\",\n      \"mimeType\": \"image/png\"\n    },\n    {\n      \"role\": \"user\",\n      \"contentType\": \"text\",\n      \"text\": \"Create a consistent photoshoot of the woman wearing a 2 piece Indian Kurti set in a front three-quarter side view with woman looking to her right with right leg stepped forward and weight shifted onto the back leg. Ensure facial consistency and body proportion.\"\n    },\n    {\n      \"role\": \"model\",\n      \"contentType\": \"imageBase64\",\n      \"imageBase64\": \"iVBORw0KGgoAAAA....\",\n      \"mimeType\": \"image/png\"\n    }\n  ],\n  \"currentMessage\": \"INSERT_INPUT_HERE\"\n}",
+  "responseModalities": ["IMAGE", "TEXT"],
+  "streamResponse": true
+}
+```
+
 ### Key Features:
 
 1. **Message History Support**: Full conversation context with mixed content types
 2. **Image Generation**: Automatic handling of generated images as binary data
 3. **Streaming Response**: Real-time processing like your original script
 4. **File Management**: Generated images are automatically saved with proper extensions
+5. **Flexible Input**: Choose between manual UI mapping or JSON input format
 
 ### Output Structure:
 
 ```json
 {
   "text": "Generated text response...",
-  "images": [
-    {
-      "fileName": "generated_image_0.png",
-      "data": "Buffer data",
-      "mimeType": "image/png"
-    }
-  ],
   "model": "gemini-2.5-flash-image-preview",
   "responseModalities": ["IMAGE", "TEXT"]
 }

@@ -57,6 +57,18 @@
 }
 ```
 
+## JSON Input Format
+
+```json
+{
+	"operation": "generateImage",
+	"model": "gemini-2.5-flash-image-preview",
+	"inputFormat": "json",
+	"jsonInput": "{\n  \"messageHistory\": [\n    {\n      \"contentType\": \"text\",\n      \"text\": \"What's in this image?\",\n      \"role\": \"user\"\n    },\n    {\n      \"contentType\": \"imageUrl\",\n      \"imageUrl\": \"https://example.com/image.jpg\",\n      \"mimeType\": \"image/jpeg\",\n      \"role\": \"user\"\n    }\n  ],\n  \"currentMessage\": \"Can you describe the colors in more detail?\"\n}",
+	"responseModalities": ["TEXT"]
+}
+```
+
 ## Advanced Configuration
 
 ```json

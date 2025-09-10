@@ -48,6 +48,46 @@ export class Gemini implements INodeType {
 				default: 'generateContent',
 			},
 			{
+				displayName: 'Input Format',
+				name: 'inputFormat',
+				type: 'options',
+				displayOptions: {
+					show: {
+						operation: ['generateContent'],
+					},
+				},
+				options: [
+					{
+						name: 'Manual Mapping',
+						value: 'manual',
+						description: 'Use the UI to define message history and current message',
+					},
+					{
+						name: 'JSON Format',
+						value: 'json',
+						description: 'Provide message history and current message as JSON',
+					},
+				],
+				default: 'manual',
+				description: 'How to provide the input data to the model',
+			},
+			{
+				displayName: 'JSON Input',
+				name: 'jsonInput',
+				type: 'json',
+				displayOptions: {
+					show: {
+						operation: ['generateContent'],
+						inputFormat: ['json'],
+					},
+				},
+				default: '',
+				description: 'JSON representation of message history and current message',
+				typeOptions: {
+					rows: 6,
+				},
+			},
+			{
 				displayName: 'Model',
 				name: 'model',
 				type: 'options',
@@ -72,6 +112,7 @@ export class Gemini implements INodeType {
 				displayOptions: {
 					show: {
 						operation: ['generateContent'],
+						inputFormat: ['manual'],
 					},
 				},
 				default: {},
@@ -200,6 +241,7 @@ export class Gemini implements INodeType {
 				displayOptions: {
 					show: {
 						operation: ['generateContent'],
+						inputFormat: ['manual'],
 					},
 				},
 				default: '',
@@ -295,11 +337,10 @@ export class Gemini implements INodeType {
 			try {
 				const operation = this.getNodeParameter('operation', i) as string;
 				const model = this.getNodeParameter('model', i) as string;
+				const inputFormat = this.getNodeParameter('inputFormat', i) as string;
 
 				if (operation === 'generateContent') {
 					const credentials = await this.getCredentials('geminiApi', i);
-					const messageHistory = this.getNodeParameter('messageHistory.messages', i, []) as any[];
-					const currentMessage = this.getNodeParameter('currentMessage', i) as string;
 					const responseModalities = this.getNodeParameter('responseModalities', i) as string[];
 					const additionalOptions = this.getNodeParameter('additionalOptions', i, {}) as any;
 
@@ -311,43 +352,126 @@ export class Gemini implements INodeType {
 					// Build contents array
 					const contents: any[] = [];
 
-					// Add message history
-					for (const message of messageHistory) {
-						const parts: any[] = [];
+					if (inputFormat === 'json') {
+						// Handle JSON input format
+						const jsonInput = this.getNodeParameter('jsonInput', i) as string;
+						let parsedInput: any;
 
-						if (message.contentType === 'text' && message.text) {
-							parts.push({ text: message.text });
-						} else if (
-							message.contentType === 'imageUrl' ||
-							message.contentType === 'imageBase64'
-						) {
-							try {
-								const geminiPart = await ImageUtils.createGeminiPart(this, message);
-								parts.push(geminiPart);
-							} catch (error) {
-								throw new NodeOperationError(
-									this.getNode(),
-									`Error processing image in message history: ${error.message}`,
-									{ itemIndex: i },
-								);
+						try {
+							parsedInput = typeof jsonInput === 'string' ? JSON.parse(jsonInput) : jsonInput;
+						} catch (error) {
+							throw new NodeOperationError(
+								this.getNode(),
+								`Invalid JSON input: ${error.message}`,
+								{ itemIndex: i },
+							);
+						}
+
+						// Validate required fields
+						if (!parsedInput.messageHistory && !parsedInput.currentMessage) {
+							throw new NodeOperationError(
+								this.getNode(),
+								'JSON input must contain either "messageHistory" or "currentMessage" fields',
+								{ itemIndex: i },
+							);
+						}
+
+						// Add message history from JSON
+						if (parsedInput.messageHistory && Array.isArray(parsedInput.messageHistory)) {
+							for (const message of parsedInput.messageHistory) {
+								const parts: any[] = [];
+
+								if (message.contentType === 'text' && message.text) {
+									parts.push({ text: message.text });
+								} else if (
+									message.contentType === 'imageUrl' ||
+									message.contentType === 'imageBase64'
+								) {
+									try {
+										// For JSON input, we need to process the image data directly
+										const imageData = await ImageUtils.processImageForGemini(
+											this,
+											message.contentType,
+											message.imageUrl,
+											message.imageBase64,
+											message.mimeType,
+										);
+
+										parts.push({
+											inlineData: {
+												mimeType: imageData.mimeType,
+												data: imageData.data,
+											},
+										});
+									} catch (error) {
+										throw new NodeOperationError(
+											this.getNode(),
+											`Error processing image in message history: ${error.message}`,
+											{ itemIndex: i },
+										);
+									}
+								}
+
+								// Only add message if it has parts
+								if (parts.length > 0) {
+									contents.push({
+										role: message.role || 'user',
+										parts,
+									});
+								}
 							}
 						}
 
-						// Only add message if it has parts
-						if (parts.length > 0) {
+						// Add current message from JSON
+						if (parsedInput.currentMessage) {
 							contents.push({
-								role: message.role,
-								parts,
+								role: 'user',
+								parts: [{ text: parsedInput.currentMessage }],
 							});
 						}
-					}
+					} else {
+						// Handle manual mapping format (existing functionality)
+						const messageHistory = this.getNodeParameter('messageHistory.messages', i, []) as any[];
+						const currentMessage = this.getNodeParameter('currentMessage', i) as string;
 
-					// Add current message
-					if (currentMessage) {
-						contents.push({
-							role: 'user',
-							parts: [{ text: currentMessage }],
-						});
+						// Add message history
+						for (const message of messageHistory) {
+							const parts: any[] = [];
+
+							if (message.contentType === 'text' && message.text) {
+								parts.push({ text: message.text });
+							} else if (
+								message.contentType === 'imageUrl' ||
+								message.contentType === 'imageBase64'
+							) {
+								try {
+									const geminiPart = await ImageUtils.createGeminiPart(this, message);
+									parts.push(geminiPart);
+								} catch (error) {
+									throw new NodeOperationError(
+										this.getNode(),
+										`Error processing image in message history: ${error.message}`,
+										{ itemIndex: i },
+									);
+								}
+							}
+
+							// Only add message if it has parts
+							if (parts.length > 0) {
+								contents.push({
+									role: message.role,
+									parts,
+								});
+							}
+						}
+
+						// Add current message
+						if (currentMessage) {
+							contents.push({
+								role: 'user',
+								parts: [{ text: currentMessage }],
+							});
+						}
 					}
 
 					// Build generation config
