@@ -9,6 +9,7 @@ import {
 
 import { GoogleGenAI } from '@google/genai';
 import { ImageUtils } from './utils/imageUtils';
+import { ulid } from 'ulid';
 
 export class Gemini implements INodeType {
 	description: INodeTypeDescription = {
@@ -511,7 +512,7 @@ export class Gemini implements INodeType {
 							for (const part of parts) {
 								if (part.inlineData) {
 									// Handle generated image
-									const fileName = `generated_image_${fileIndex++}`;
+									const fileName = `img_${ulid()}_${fileIndex++}`;
 									const imageData = ImageUtils.saveBinaryToNodeData(
 										part.inlineData.data || '',
 										part.inlineData.mimeType || 'image/png',
